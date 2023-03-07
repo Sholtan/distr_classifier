@@ -2,35 +2,17 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-def normal(x, mean, std):
-    firstpart = std*np.sqrt(2*np.pi)
-    inter = ((x-mean)/std) * ((x-mean)/std)
-    secpart = np.exp(-0.5*inter)
-    f = secpart/firstpart
-    return f
-
-
 def plot_input_data(distr1, distr2):
     samples = distr1.shape[0]
     distr1 = distr1.reshape(samples*6, 1)
     distr2 = distr2.reshape(samples*6, 1)
     x = np.concatenate((distr1, distr2), axis=1)
-
-
     fig, ax = plt.subplots()
-
-
     ax.hist(x, 100, density=False, histtype='step', stacked=False)
     ax.set_title("gaussians")
-
-
-    
-
     #plt.show(block=False)
     #fig.canvas.draw()
     fig.savefig("gaussians.png")
-   
 
 
 def sigmoid(z):
@@ -44,33 +26,12 @@ def sigmoid(z):
     s = 1/(1+np.exp(-z))
     return s
 
-def make_probability_labels(distr1, distr2, mean1, std1, mean2, std2, size):
-    '''
-    calculates for every vector of 6 numbers probability it being from 1 distribution and probability it being from 2 distribution
-    '''
-
-    k1 = 1/(std1*np.sqrt(2*np.pi))
-    k2 = 1/(std2*np.sqrt(2*np.pi))
-    distr1_prob_dens1 = k1*np.exp(-0.5*np.power((distr1-mean1)/std1,2))
-    distr1_prob_dens2 = k2*np.exp(-0.5*np.power((distr1-mean2)/std2,2))
-    
-    distr1_prob_dens1_flat = np.zeros(size)
-    for i in range(size):
-        distr1_prob_dens1_flat[i] = distr1_prob_dens1[i,0]*distr1_prob_dens1[i,1]*distr1_prob_dens1[i,2]*distr1_prob_dens1[i,3]*distr1_prob_dens1[i,4]*distr1_prob_dens1[i,5]
-
-    distr1_prob_dens2_flat = np.zeros(size)
-    for i in range(size):
-        distr1_prob_dens2_flat[i] = distr1_prob_dens2[i,0]*distr1_prob_dens2[i,1]*distr1_prob_dens2[i,2]*distr1_prob_dens2[i,3]*distr1_prob_dens2[i,4]*distr1_prob_dens2[i,5]
-
-    distr1_prob_labels = np.zeros(size)
-    for i in range(size):
-        distr1_prob_labels[i] = distr1_prob_dens2_flat[i]/(distr1_prob_dens2_flat[i]+distr1_prob_dens1_flat[i])
-
-
-    return 100*distr1_prob_labels
-
 
 def formula_predict(distr1, mean1, std1, mean2, std2):
+    '''
+    calculates for every vector of 6 numbers probability of it being from 1 distribution and probability of it being from 2 distribution
+    assign label based on most probable distribution
+    '''
     k1 = 1/(std1*np.sqrt(2*np.pi))
     k2 = 1/(std2*np.sqrt(2*np.pi))
     distr1_prob_dens1 = k1*np.exp(-0.5*np.power((distr1.T-mean1)/std1,2))
@@ -78,8 +39,6 @@ def formula_predict(distr1, mean1, std1, mean2, std2):
 
     size = distr1.shape[1]
 
-    print("SIZE ", size)
-
     distr1_prob_dens1_flat = np.zeros(size)
     for i in range(size):
         distr1_prob_dens1_flat[i] = distr1_prob_dens1[i,0]*distr1_prob_dens1[i,1]*distr1_prob_dens1[i,2]*distr1_prob_dens1[i,3]*distr1_prob_dens1[i,4]*distr1_prob_dens1[i,5]
@@ -89,12 +48,6 @@ def formula_predict(distr1, mean1, std1, mean2, std2):
         distr1_prob_dens2_flat[i] = distr1_prob_dens2[i,0]*distr1_prob_dens2[i,1]*distr1_prob_dens2[i,2]*distr1_prob_dens2[i,3]*distr1_prob_dens2[i,4]*distr1_prob_dens2[i,5]
 
     distr1_prob_labels = np.zeros(size)
-
-    #print("distr1_prob_dens1_flat")
-    #print(distr1_prob_dens1_flat)
-    #print("distr1_prob_dens2_flat")
-    #print(distr1_prob_dens2_flat)
-
 
     for i in range(size):
         distr1_prob_labels[i] = distr1_prob_dens2_flat[i]/(distr1_prob_dens2_flat[i]+distr1_prob_dens1_flat[i])
@@ -107,20 +60,13 @@ def formula_predict(distr1, mean1, std1, mean2, std2):
 
 
 def initialize_train_test(mean1, std1, mean2, std2, size, rng):
-    
-    
-    normalizer = 1
-    
     distr1 = (mean1 + std1*rng.standard_normal((size,6)))
     distr1_labels = np.zeros(size)
     
     distr2 = (mean2 + std2*rng.standard_normal((size,6)))
     distr2_labels = np.ones(size)
-    
-    distr1_prob_labels = make_probability_labels(distr1, distr2, mean1, std1, mean2, std2, size)
 
     plot_input_data(distr1, distr2)
-
 
     input_x = np.concatenate((distr1, distr2), axis=0)
     input_labels = np.concatenate((distr1_labels, distr2_labels), axis=0)
@@ -141,32 +87,35 @@ def initialize_train_test(mean1, std1, mean2, std2, size, rng):
 
 def initialize_weights_random(n1, n2, rng):
     """
-    This function creates a vector with random values btw [0,1] of shape (dim, 1) for w and initializes b to 0.
+    initializes weights and bias vectors with random values between [0,0.1].
     
     Argument:
-    dim -- size of the w vector we want (or number of parameters in this case)
-    
+    n1 -- input layer size
+    n2 -- hidden layer size
+    rng -- random number generator to use
     Returns:
-    w -- initialized vector of shape (dim, 1)
-    b -- initialized scalar (corresponds to the bias)
+    w1 -- matrix of shape (n2, n1)
+    b1 -- vector of shape (n2, 1)
+    w2 -- vector of shape (1, n2)
+    b2 -- scalar
     """
-    #rng = np.random.default_rng(seed)
     w1 = rng.random([n2, n1])*0.1
     b1 = rng.random([n2,1])*0.1
     w2 = rng.random([1, n2])*0.1
     b2 = 0.1
     return w1, b1, w2, b2
 
-def initialize_weights_zeros(n1=6, n2 = 2):
+def initialize_weights_zeros(n1, n2):
     """
-    This function creates a vector filled with zeros of shape (dim, 1) for w and initializes b to 0.
-    
+    initializes weights and bias vectors with zeros of shape (dim, 1) for w and initializes b to 0.
     Argument:
-    dim -- size of the w vector we want (or number of parameters in this case)
-    
+    n1 -- input layer size
+    n2 -- hidden layer size
     Returns:
-    w -- initialized vector of shape (dim, 1)
-    b -- initialized scalar (corresponds to the bias)
+    w1 -- matrix of shape (n2, n1)
+    b1 -- vector of shape (n2, 1)
+    w2 -- vector of shape (1, n2)
+    b2 -- scalar
     """
     w1 = np.zeros((n2, n1))
     b1 = np.zeros((n2,1))
@@ -186,35 +135,38 @@ def propagate(w1, b1, w2, b2, X, Y):
     Y -- true "label" vector (containing 0 if left, 1 if right) of size (1, number of examples)
     Return:
     cost -- negative log-likelihood cost for logistic regression
-    dw -- gradient of the loss with respect to w, thus same shape as w
-    db -- gradient of the loss with respect to b, thus same shape as b
+    dw1 -- gradient of the loss with respect to w1, thus same shape as w1
+    db1 -- gradient of the loss with respect to b1, thus same shape as b1
+    dw2 -- gradient of the loss with respect to w2, thus same shape as w2
+    db2 -- gradient of the loss with respect to b2, thus same shape as b2
     """
     m = X.shape[1] # number of examples
     
     # FORWARD PROPAGATION (FROM X TO COST)
-
-    z1 = np.dot(w1, X) + b1  #  (n2, n1)(n1, m) + (n2, 1)
-    a1 = np.tanh(z1)         #  (n2, m)
-    z2 = np.dot(w2, a1) + b2 #  (1, n2)(n2, m) + (1)
-    a2 = sigmoid(z2)         #  (1, m)  compute activation
+    z1 = np.dot(w1, X) + b1  #  dim check: (n2, n1)(n1, m) + (n2, 1)
+    a1 = np.tanh(z1)         #  dim check: (n2, m)
+    z2 = np.dot(w2, a1) + b2 #  dim check: (1, n2)(n2, m) + (1)
+    a2 = sigmoid(z2)         #  dim check: (1, m)  compute activation
     
     cost = -np.sum(Y*np.log(a2)+(1-Y)*np.log(1-a2))/m   # compute cost
 
     # BACKWARD PROPAGATION (TO FIND GRAD)
-    dz2 = a2-Y                                        # (1, m)
-    dw2 = np.dot(dz2, a1.T)/m                         # (1, m)(m, n2)
-    db2 = np.sum(dz2, axis=1, keepdims=True)/m        # (1)
+    dz2 = a2-Y                                        # dim check: (1, m)
+    dw2 = np.dot(dz2, a1.T)/m                         # dim check: (1, m)(m, n2)
+    db2 = np.sum(dz2, axis=1, keepdims=True)/m        # dim check: (1)
 
-    dz1 = np.dot(w2.T, dz2) * (1 - np.power(a1, 2))   # (n2, 1)(1, m) * (n2, m)
-    dw1 = (np.dot(dz1, X.T))/m                        # (n2, m)(m, n1)
-    db1 = np.sum(dz1, axis=1, keepdims=True)/m        # (n2, 1)
+    dz1 = np.dot(w2.T, dz2) * (1 - np.power(a1, 2))   # dim check: (n2, 1)(1, m) * (n2, m)
+    dw1 = (np.dot(dz1, X.T))/m                        # dim check: (n2, m)(m, n1)
+    db1 = np.sum(dz1, axis=1, keepdims=True)/m        # dim check: (n2, 1)
 
 
 
    
 
-    #assert(dw.shape == w.shape)
-    #assert(db.dtype == float)
+    assert(dw1.shape == w1.shape)
+    assert(dw2.shape == w2.shape)
+    assert(db1.shape == b1.shape)
+    assert(db2.dtype == float)
     cost = np.squeeze(cost)
     assert(cost.shape == ())
     
@@ -229,22 +181,26 @@ def propagate(w1, b1, w2, b2, X, Y):
 
 def optimize(w1, b1, w2, b2, X, Y, num_iterations, learning_rate, test, test_label):
     """
-    This function optimizes w and b by running a gradient descent algorithm
-    
+    This function optimizes w1,w2 and b1,b2 by running a gradient descent algorithm
     Arguments:
-    w -- weights, a numpy array of size (6, 1)
-    b -- bias, a scalar
-    X -- data of shape (6, number of examples)
-    Y -- true "label" vector (containing -1 if left, 1 if right), of shape (1, number of examples)
+    w1 -- weights, a numpy matrix of size (n2, n1)
+    b1 -- bias, a numpy array of size (n2, 1)
+    w2 -- weights, a numpy array of size (1, n2)
+    b2 -- bias, a scalar
+    X -- data of shape (n1, number of examples)
+    Y -- true "label" vector (containing 0 if left, 1 if right), of shape (1, number of examples)
     num_iterations -- number of iterations of the optimization loop
     learning_rate -- learning rate of the gradient descent update rule
-    print_cost -- True to print the loss every 100 steps
-    
+    test -- test set data, shape (n1, test_examples_number)
+    test_label -- true labels for test set
+
     Returns:
     params -- dictionary containing the weights w and bias b
     grads -- dictionary containing the gradients of the weights and bias with respect to the cost function
     costs -- list of all the costs computed during the optimization, this will be used to plot the learning curve.
-    
+    test_accuracy_array --  list of all the accuracy on test set computed during the optimization
+    train_accuracy_array -- list of all the accuracy on train set computed during the optimization
+
     Tips:
     You basically need to write down two steps and iterate through them:
         1) Calculate the cost and the gradient for the current parameters. Use propagate().
@@ -309,11 +265,10 @@ def optimize(w1, b1, w2, b2, X, Y, num_iterations, learning_rate, test, test_lab
 
 def predict(params, input_data):
     '''
-    Predict whether the label is 0 or 1 using learned logistic regression parameters (w, b)
+    Predict whether the label is 0 or 1 using learned logistic regression parameters (w1, b1, w2, b2)
     
     Arguments:
-    w -- weights, a numpy array of size (6, 1)
-    b -- bias, a scalar
+    params -- dictionary with weights and biases (w1, b1, w2, b2)
     input_data -- data of size (n1, number of examples)
     
     Returns:
@@ -325,44 +280,33 @@ def predict(params, input_data):
     w2 = params['w2']
     b2 = params['b2']
 
-
     m = input_data.shape[1]   # number of examples
-    y_prediction = np.zeros((1,m))
 
-
-    z1 = np.dot(w1, input_data) + b1  #  (n2, n1)(n1, m) + (n2, 1)
-    a1 = np.tanh(z1)         #  (n2, m)
-    z2 = np.dot(w2, a1) + b2 #  (1, n2)(n2, m) + (1)
-    A = sigmoid(z2)         #  (1, m)  compute activation
+    z1 = np.dot(w1, input_data) + b1  #  dim check: (n2, n1)(n1, m) + (n2, 1)
+    a1 = np.tanh(z1)                  #  dim check: (n2, m)
+    z2 = np.dot(w2, a1) + b2          #  dim check: (1, n2)(n2, m) + (1)
+    y_prediction = sigmoid(z2)                   #  dim check: (1, m)  compute activation
     
-
-
-
-    A[A>0.5] = 1
-    A[A<=0.5] = 0
-    y_prediction = A
+    y_prediction[y_prediction>0.5] = 1
+    y_prediction[y_prediction<=0.5] = 0
     return y_prediction
 
 
 def plot_learning_curve(costs):
     plt.figure(2)
-    
     plt.plot(costs)
-    
     plt.ylabel('cost')
     y_ticks = np.linspace(0, 0.8, 17)  # 11 ticks from -1 to 1
-
     plt.yticks(y_ticks)
-
     plt.grid(True, which='both')
     plt.xlabel('iterations')
     plt.title("Learning curve")
     plt.savefig("cost_curve.png")
 
+
 def plot_accuracy_curve(test_accuracy_array, train_accuracy_array):
     sze = len(test_accuracy_array)
     plt.figure(3)
-    
     plt.plot(np.arange(1, sze+1), test_accuracy_array, 'r--', np.arange(1, sze+1), train_accuracy_array)
     plt.ylabel('test accuracy')
     plt.grid(True, which='both')
